@@ -1,63 +1,51 @@
-// test-reputation.js (CommonJS format)
-const { GoogleGenAI } = require("@google/genai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY2);
+
+// Define model
+const model = genAI.getGenerativeModel({
+  model: "gemini-3.6-flash",
+  tools: [{ googleSearch: {} }] // Moved tools here for standard SDK initialization
+});
 
 async function analyzeWithAI(domain) {
-  // const prompt = `
-  //   You are a cybersecurity expert investigating whether a website is a scam.
-  //   Target Domain: "${domain}"
-
-  //   Search Reddit (site:reddit.com) and other public discussions for reports,
-  //   complaints, or scam allegations about "${domain}". Look specifically for:
-  //   - Users claiming they were scammed, not paid, or lost money
-  //   - Reports of phishing, fake products, non-delivery, or fraud
-  //   - Whether the negative discussion is about the domain itself being fraudulent,
-  //     versus it being a legitimate platform where scams merely occur (e.g. marketplace,
-  //     social media, forum)
-
-  //   Respond ONLY in this JSON format, with no other text:
-  //   {
-  //     "isScam": true/false,
-  //     "riskLevel": "SAFE" | "SUSPICIOUS" | "DANGEROUS",
-  //     "safeScore": On scale of 0-10,
-  //     "reason": "Short 1-2 sentence explanation",
-  //     "sources": ["url1", "url2"]
-  //   }
-  // `;
-
   const prompt = `
     Search Reddit and other public discussions for reports,
     complaints, or scam allegations about the website: "${domain}".
-    Answer only this format:
+    Answer only in this valid JSON format:
     {
-      "riskLevel": "SAFE" | "SUSPICIOUS" | "DANGEROUS",
-      "safeScore": On scale of 0-10,
-      "reason": An array of those reasons (top 3 only),
+      "riskLevel": "SAFE | SUSPICIOUS | DANGEROUS",
+      "safeScore": 8,
+      "reasons": ["reason1", "reason2"],
       "sources": ["url1", "url2"]
     }
-  `
+  `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }]
+    // FIX: Pass prompt as a single argument or properly formatted contents array
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.9,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json"
       }
     });
 
-    const textResponse = response.text;
-    const jsonString = textResponse.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(jsonString);
+    const response = await result.response;
+    const textResponse = response.text();
+    console.log("\nText Response: ", textResponse);
 
-    // Grounding metadata gives you the actual search results/citations Gemini used
+    const jsonString = textResponse.replace(/```json|```/g, '').trim();
+    const parsedResult = JSON.parse(jsonString);
+
+    // FIX: Correctly access grounding metadata from response candidate
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const groundingSources = groundingChunks.map(c => c.web?.uri).filter(Boolean);
 
-    return { ...result, groundingSources };
+    return { ...parsedResult, groundingSources };
   } catch (error) {
     console.error(`\n❌ [FATAL ERROR in Gemini AI Service]: ${error.message}`);
     process.exit(1);
