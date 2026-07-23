@@ -1,4 +1,6 @@
 exports.analyzeWebsite = async (req, res) => {
+    const { analyzeTechnical } = require("../services/technical/technical.service");
+    const { saveAnalysis } = require("../services/database/database.service");
     try {
         const { url } = req.body;
 
@@ -8,11 +10,17 @@ exports.analyzeWebsite = async (req, res) => {
                 message: "URL is required",
             });
         }
+        const technicalReport = await analyzeTechnical(url);
+        const savedAnalysis = await saveAnalysis({
+            url,
+            technical_report: technicalReport,
+        });
 
         res.status(200).json({
             success: true,
-            message: "Analysis endpoint is working",
             url,
+            analysisId: savedAnalysis.id,
+            technical: technicalReport,
         });
     } catch (err) {
         res.status(500).json({

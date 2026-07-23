@@ -18,7 +18,8 @@
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "mongoose": "^8.24.1",
-    "morgan": "^1.11.0"
+    "morgan": "^1.11.0",
+    "whois-json": "^2.0.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
