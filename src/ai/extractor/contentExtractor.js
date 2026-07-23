@@ -32,7 +32,9 @@ function extractContent(website) {
         website,
         text,
         forms,
-        links
+        links,
+        claims,
+        policies
     });
 
     return {

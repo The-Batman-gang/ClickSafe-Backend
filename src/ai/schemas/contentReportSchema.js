@@ -11,7 +11,7 @@ const { z } = require("zod");
  * This represents ONLY the content-related reasoning.
  */
 
-const ContentAnalysisSchema = z.object({
+const ContentReportSchema = z.object({
   riskScore: z.number().min(0).max(100),
 
   summary: z.string(),
@@ -51,5 +51,5 @@ const ContentAnalysisSchema = z.object({
 });
 
 module.exports = {
-  ContentAnalysisSchema,
+  ContentReportSchema,
 };
