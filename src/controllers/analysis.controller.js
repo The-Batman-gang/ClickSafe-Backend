@@ -3,7 +3,6 @@ exports.analyzeWebsite = async (req, res) => {
     const { saveAnalysis } = require("../services/database/database.service");
     try {
         const { url } = req.body;
-
         if (!url) {
             return res.status(400).json({
                 success: false,
@@ -15,7 +14,6 @@ exports.analyzeWebsite = async (req, res) => {
             url,
             technical_report: technicalReport,
         });
-
         res.status(200).json({
             success: true,
             url,
