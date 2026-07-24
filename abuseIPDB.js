@@ -43,3 +43,12 @@ const MY_API_KEY = process.env.ABUSEIPDB_API_KEY;
 const targetIp = '8.8.8.8';
 
 checkIpReputation(targetIp, MY_API_KEY);
+
+/*
+OUTPUT: 
+    --- Results for 8.8.8.8 ---
+    Abuse Confidence Score: 0%
+    Total Reports: 125
+    Country: US
+    ✅ Clean: This IP appears safe.
+*/
