@@ -1,4 +1,4 @@
-const { cleanText } = require("../utils/textCleaner");
+const { cleanText } = require("./utils/textCleaner");
 
 /**
  * Claim patterns grouped by category.
