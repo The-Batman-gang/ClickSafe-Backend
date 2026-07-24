@@ -11,7 +11,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     {
       "riskLevel": "SAFE | SUSPICIOUS | DANGEROUS",
       "safeScore": 0 to 10,
-      "reasons": ["reason1", "reason2"],
+      "reasons": ["reason1", "reason2", "reason3"],
       "sources": ["url1", "url2"]
     }
   `;
