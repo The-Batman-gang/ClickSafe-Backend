@@ -1,4 +1,4 @@
-const { cleanText } = require("../utils/textCleaner");
+const { cleanText } = require("../../utils/textcleaner");
 
 /**
  * Extracts all human-readable text from the page.

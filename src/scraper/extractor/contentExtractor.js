@@ -1,10 +1,12 @@
 const { extractPageInfo } = require("./pageExtractor");
 const { extractText } = require("./textExtractor");
-const { extractForms } = require("./formsExtractor");
-const { extractLinks } = require("./linksExtractor");
+const { extractForms } = require("./formExtractor");
+const { extractLinks } = require("./linkExtractor");
 const { extractPolicies } = require("./policyExtractor");
 const { extractClaims } = require("./claimsExtractor");
 const { extractStatistics } = require("./statisticsExtractor");
+const cheerio = require("cheerio");
+
 
 /**
  * Converts raw website data into a structured object
@@ -14,7 +16,14 @@ const { extractStatistics } = require("./statisticsExtractor");
  * It only orchestrates specialized extractors.
  *
  */
-function extractContent(website) {
+function extractContent(page) {
+
+    const $ = cheerio.load(page.html);
+
+    const website = {
+        ...page,
+        $
+    };
 
     const pageInfo = extractPageInfo(website);
 

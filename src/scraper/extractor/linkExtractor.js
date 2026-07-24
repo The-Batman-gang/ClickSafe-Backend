@@ -1,5 +1,5 @@
 const { URL } = require("url");
-const { cleanText } = require("../utils/textCleaner");
+const { cleanText } = require("../../utils/textcleaner");
 
 /**
  * Extracts and classifies all hyperlinks.
