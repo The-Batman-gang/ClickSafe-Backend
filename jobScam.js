@@ -130,3 +130,16 @@ const samplePayload = {
 };
 
 evaluateJobPosting(samplePayload).then(res => console.log("\nVerdict:", JSON.stringify(res, null, 2)));
+
+
+/*
+OUTPUT:
+{
+  "reasons": [
+    "Salary is realistic for a Software Engineer at Infosys.",
+    "Recruiter email domain matches the official company site."
+  ],
+  "emailDomainMatch": true,
+  "sources": []
+}
+*/
