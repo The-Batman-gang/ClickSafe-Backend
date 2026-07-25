@@ -7,7 +7,7 @@ async function test() {
     try {
 
         const website = await scrapeAndExtract(
-            "https://playwright.dev/"
+            "https://preronawelfarefoundation.com/"
         );
 
         console.log("\n===== WEBSITE OBJECT =====\n");
