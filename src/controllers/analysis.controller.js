@@ -1,5 +1,5 @@
 const { analyzeTechnical } = require("../services/technical/technical.service");
-const { saveAnalysis } = require("../services/database/database.service");
+const { saveAnalysis, getAnalysisByUrl } = require("../services/database/database.service");
 const { scrapeAndExtract } = require("../scraper/playwright/playwrightOrchestrator");
 const { analyzeContent, analyzeFinalReport } = require("../ai/aiOrchestrator");
 const { analyzeReputation } = require("../services/reputation/reputation.service");
@@ -11,6 +11,29 @@ exports.analyzeWebsite = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "URL is required",
+            });
+        }
+
+        // ── Check Cache First ──
+        console.log(`[Cache Check] Checking if analysis exists for URL: ${url}`);
+        const cachedAnalysis = await getAnalysisByUrl(url).catch(err => {
+            console.error("Cache check failed (non-fatal):", err.message);
+            return null;
+        });
+
+        if (cachedAnalysis) {
+            console.log(`[Cache Hit] Found cached analysis for ${url} (ID: ${cachedAnalysis.id})`);
+            return res.status(200).json({
+                success: true,
+                url,
+                analysisId: cachedAnalysis.id,
+                isCached: true,
+                technical: cachedAnalysis.technical_report,
+                // Return saved report format. If content_report is crawled data, we map it accordingly
+                website: cachedAnalysis.content_report,
+                contentAi: cachedAnalysis.content_report,
+                reputationReport: cachedAnalysis.reputation_report,
+                finalReport: cachedAnalysis.ai_report,
             });
         }
 
