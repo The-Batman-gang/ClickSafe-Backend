@@ -2,6 +2,7 @@ const { analyzeTechnical } = require("../services/technical/technical.service");
 const { saveAnalysis } = require("../services/database/database.service");
 const { scrapeAndExtract } = require("../scraper/playwright/playwrightOrchestrator");
 const { analyzeContent, analyzeFinalReport } = require("../ai/aiOrchestrator");
+const { analyzeReputation } = require("../services/reputation/reputation.service");
 
 exports.analyzeWebsite = async (req, res) => {
     try {
@@ -15,16 +16,20 @@ exports.analyzeWebsite = async (req, res) => {
 
         // ── Step 1: Run technical analysis and page crawling in parallel ──
         console.log("[1/4] Running technical scan & crawler...");
-        const [technicalReport, websiteData] = await Promise.all([
+        const [technicalReport, websiteData, reputationReport] = await Promise.all([
             analyzeTechnical(url),
             scrapeAndExtract(url).catch(err => {
                 console.error("Crawler failed (non-fatal):", err.message);
+                return null;
+            }),
+            analyzeReputation(url).catch(err => {
+                console.error("Reputation AI failed (non-fatal):", err.message);
                 return null;
             })
         ]);
 
         // ── Step 2: Content AI analysis (requires crawled data) ──
-        let contentReport = null;
+        var contentReport = null;
         if (websiteData) {
             console.log("[2/4] Running Content AI analysis...");
             contentReport = await analyzeContent(websiteData).catch(err => {
@@ -39,7 +44,7 @@ exports.analyzeWebsite = async (req, res) => {
         console.log("[3/4] Running Final AI synthesis...");
         const finalReport = await analyzeFinalReport({
             technicalReport,
-            reputationReport: null, // Reputation service not yet implemented
+            reputationReport,
             contentReport,
         }).catch(err => {
             console.error("Final AI failed (non-fatal):", err.message);
@@ -51,8 +56,10 @@ exports.analyzeWebsite = async (req, res) => {
         const savedAnalysis = await saveAnalysis({
             url,
             technical_report: technicalReport,
-            content_report: contentReport,
+            // Save AI content analysis if available, otherwise save raw crawled data
+            content_report: contentReport ?? websiteData,
             ai_report: finalReport,
+            reputation_report: reputationReport,
             trust_score: finalReport?.trustScore ?? null,
             risk_level: finalReport?.riskLevel ?? null,
         });
@@ -65,6 +72,7 @@ exports.analyzeWebsite = async (req, res) => {
             technical: technicalReport,
             website: websiteData,
             contentAi: contentReport,
+            reputationReport: reputationReport,
             finalReport,
         });
 
@@ -75,4 +83,4 @@ exports.analyzeWebsite = async (req, res) => {
             message: err.message,
         });
     }
-};
+};

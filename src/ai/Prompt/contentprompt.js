@@ -1,11 +1,9 @@
 /**
  * Builds the prompt for the Website Content Analysis Agent.
- *
-
  */
 
 function buildContentPrompt(context) {
-    return `
+  return `
 You are an expert cybersecurity analyst specializing in website trust analysis.
 
 You are provided with structured information extracted from an entire website.
@@ -50,16 +48,47 @@ RULES
 • Never invent information.
 • Base every conclusion only on the supplied context.
 • If evidence is insufficient, explicitly mention it.
-• Every finding must include a reason.
 • Return ONLY valid JSON.
 • Do NOT use Markdown.
 • Do NOT wrap JSON inside code blocks.
+
+IMPORTANT:
+For ALL arrays below, return ONLY STRINGS.
+
+DO NOT return objects like:
+{
+  "reason": "...",
+  "severity": "High"
+}
+
+Instead return descriptive sentences.
+
+Example:
+
+"suspiciousForms": [
+  "The login form requests a password without explaining how credentials are protected."
+],
+
+"suspiciousLinks": [
+  "Several links use misleading anchor text that does not match the destination."
+],
+
+"trustSignals": [
+  "A Privacy Policy page is available.",
+  "HTTPS is used across the website.",
+  "Contact information is clearly displayed."
+],
+
+"redFlags": [
+  "The website contains exaggerated earnings claims without evidence.",
+  "No refund policy was found."
+]
 
 --------------------------------------------------
 OUTPUT FORMAT
 --------------------------------------------------
 
-Return JSON with exactly these fields:
+Return JSON with EXACTLY this structure:
 
 {
   "riskScore": 0,
@@ -108,5 +137,5 @@ ${JSON.stringify(context, null, 2)}
 }
 
 module.exports = {
-    buildContentPrompt
+  buildContentPrompt
 };

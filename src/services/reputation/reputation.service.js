@@ -1,231 +1,351 @@
-require('dotenv').config();
-const { GoogleGenAI } = require("@google/genai");
-const readline = require('readline');
+require("dotenv").config();
+const axios = require("axios");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { URL } = require("url");
 
-// Extract information from Reddit and other public platforms
-export const getSocialSentiment = (domain) => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
-    const prompt = `
-    Search Reddit and other public discussions for reports,
-    complaints, or scam allegations about "${domain}".
-    Answer only in this JSON format:
-    {
-      "riskLevel": "SAFE | SUSPICIOUS | DANGEROUS",
-      "safeScore": 0 to 10,
-      "reasons": ["reason1", "reason2", "reason3"],
-      "sources": ["url1", "url2"]
+/**
+ * Strips protocol and www from a URL and returns the bare hostname.
+ */
+function extractHostname(rawUrl) {
+    try {
+        return new URL(rawUrl).hostname.replace(/^www\./, "");
+    } catch {
+        return rawUrl.replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0];
     }
-  `;
-
-    const response = await ai.models.generateContent({
-        // model: "gemini-3.6-flash",
-        model: "gemini-3.5-flash-lite",         // This also works
-        contents: prompt,
-    });
-
-    const result = JSON.parse(response.text.replace(/```json|```/g, '').trim());
-    return result
 }
 
-export const virusTotal = (domain) => {
-    const API_KEY = process.env.VIRUSTOTAL_API_KEY;
-    const API_URL = 'https://www.virustotal.com/api/v3/domains/';
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Social Sentiment via Gemini (grounded search)
+// ─────────────────────────────────────────────────────────────────────────────
 
-    const MAX_RED_FLAGS_LIMIT = 10;
+/**
+ * Uses Gemini to reason about public reputation of a domain
+ * based on its own training knowledge and web grounding.
+ *
+ * @param {string} domain
+ * @returns {Promise<Object>}
+ */
+async function getSocialSentiment(domain) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-    async function checkDomain(domain2) {
-        // Clean domain: Remove http://, https://, and trailing slashes if present
-        const cleanDomain = domain2.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+        const prompt = `
+You are a cybersecurity analyst.
 
-        try {
-            const response = await fetch(`${API_URL}${cleanDomain}`, {
-                method: 'GET',
-                headers: {
-                    'accept': 'application/json',
-                    'x-apikey': API_KEY
-                }
-            });
+Based on your knowledge, analyze the domain "${domain}" for public reputation,
+Reddit/forum complaints, scam allegations, or user trust issues.
 
-            if (response.status === 200) {
-                return await response.json();
-            } else if (response.status === 404) {
-                return null;
-            } else {
-                return null;
+Return ONLY valid JSON — no markdown, no code blocks:
+
+{
+  "riskLevel": "SAFE | SUSPICIOUS | DANGEROUS",
+  "safeScore": <number 0-10>,
+  "reasons": ["reason1", "reason2"],
+  "sources": ["source1", "source2"]
+}
+`;
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 2048, // Increased — verbose reasons were truncating JSON
+                responseMimeType: "application/json"
             }
-        } catch (error) {
-            return null;
-        }
+        });
+
+        const raw = result.response.text();
+
+        console.log("========== GEMINI RAW ==========");
+        console.log(raw);
+        console.log("================================");
+
+        const cleaned = raw
+            .replace(/```json\s*/gi, "")
+            .replace(/```\s*/gi, "")
+            .trim();
+
+        return JSON.parse(cleaned);
+
+    } catch (err) {
+        console.error("getSocialSentiment failed:", err.message);
+        return {
+            riskLevel: "UNKNOWN",
+            safeScore: null,
+            reasons: ["Social sentiment check failed."],
+            sources: [],
+            error: err.message
+        };
     }
+}
 
-    function parseDomainResults(resultJson) {
-        if (!resultJson || !resultJson.data) return;
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. VirusTotal Domain Scan
+// ─────────────────────────────────────────────────────────────────────────────
 
-        const attributes = resultJson.data.attributes;
+const MAX_RED_FLAGS_LIMIT = 10;
+
+/**
+ * Checks a domain against VirusTotal's security engine database.
+ *
+ * @param {string} domain  — full URL or bare domain
+ * @returns {Promise<Object>}
+ */
+async function virusTotal(domain) {
+    try {
+        const cleanDomain = extractHostname(domain);
+        const API_KEY = process.env.VIRUSTOTAL_API_KEY?.trim();
+        const url = `https://www.virustotal.com/api/v3/domains/${cleanDomain}`;
+
+        const response = await axios.get(url, {
+            headers: {
+                accept: "application/json",
+                "x-apikey": API_KEY
+            },
+            validateStatus: () => true
+        });
+
+        if (response.status === 404) {
+            return { risk: "UNKNOWN", reason: "Domain not found in VirusTotal.", finalStats: null };
+        }
+
+        if (response.status !== 200) {
+            throw new Error(`VirusTotal returned status ${response.status}`);
+        }
+
+        const attributes = response.data.data.attributes;
         const stats = attributes.last_analysis_stats;
         const results = attributes.last_analysis_results;
 
         const totalRedFlags = stats.malicious + stats.suspicious;
 
         const finalStats = {
-            Malicious_Flags: stats.malicious,
-            Suspicious_Flags: stats.suspicious,
-            Harmless_Flags: stats.harmless,
-            Undetected_Flags: stats.undetected
-        }
+            maliciousFlags: stats.malicious,
+            suspiciousFlags: stats.suspicious,
+            harmlessFlags: stats.harmless,
+            undetectedFlags: stats.undetected
+        };
 
-        // Check if the domain crosses our limit
         if (totalRedFlags >= MAX_RED_FLAGS_LIMIT) {
-            return { risk: "High", finalStats, reason: `THRESHOLD LIMIT EXCEEDED: This site has ${totalRedFlags} red flags registered in VirusTotal`, extraDetails: "None" };
+            return {
+                risk: "HIGH",
+                finalStats,
+                reason: `Threshold exceeded: ${totalRedFlags} red flags in VirusTotal.`,
+                extraDetails: null
+            };
         }
 
-        // If it has red flags but is under our threshold, show the detailed remarks
         if (totalRedFlags > 0) {
-            let engines = [];
-            let status = [];
-            let remark = [];
-
+            const engines = [], status = [], remark = [];
             for (const [engineName, engineReport] of Object.entries(results)) {
-                if (engineReport.category === 'malicious' || engineReport.category === 'suspicious') {
+                if (engineReport.category === "malicious" || engineReport.category === "suspicious") {
                     engines.push(engineName);
                     status.push(engineReport.category.toUpperCase());
-                    remark.push(engineReport.result || 'No specific remark left');
+                    remark.push(engineReport.result || "No remark");
                 }
             }
-
-            const extraDetails = {
-                engines,
-                status,
-                remark
-            }
-
-            return { risk: "Medium", finalStats, reason: `This site has ${totalRedFlags} red flags registered in VirusTotal`, extraDetails }
-        } else {
-            return { risk: "None", finalStats, reason: `No security vendors have flagged this domain.`, extraDetails: "None" }
+            return {
+                risk: "MEDIUM",
+                finalStats,
+                reason: `${totalRedFlags} red flags in VirusTotal.`,
+                extraDetails: { engines, status, remark }
+            };
         }
-    }
 
-    if (!domain || !domain.trim()) {
-        throw new Error("Domain cannot be empty!");
-    }
+        return {
+            risk: "NONE",
+            finalStats,
+            reason: "No security vendors flagged this domain.",
+            extraDetails: null
+        };
 
-    return checkDomain(domain.trim()).then(parseDomainResults);
-
-    // If a domain only has 1 or 2 or 3 malicious flags from reputable vendors, then mark it as SUSPICIOUS, rather than completely marking it as DANGERGEROUS. More than 3 malicious flags, then mark it as DANGERGEROUS
-}
-
-export const abuseIPDB = (ipAddress) => {
-    const apiKey = process.env.ABUSEIPDB_API_KEY;
-
-    const url = `https://api.abuseipdb.com/api/v2/check?ipAddress=${ipAddress}&maxAgeInDays=90`;
-
-    const options = {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Key': apiKey
-        }
-    };
-
-    try {
-        const response = await fetch(url, options);
-
-        if (response.ok) {
-            const jsonResponse = await response.json();
-            const data = jsonResponse.data;
-
-            const stats = {
-                Abuse_Confidence_Score: data.abuseConfidenceScore,
-                Total_Reports: data.totalReports,
-                Country: data.countryCode
-            }
-
-            if (data.abuseConfidenceScore > 50) {
-                return {remark: "This IP has a high malicious rating", stats}
-            } else {
-                return {remark: "This IP appears safe", stats}
-            }
-        } else {
-            const errorText = await response.text();
-            throw new Error(`Error: Received status code- ${response.status} with error message- ${errorText}`);
-        }
-    } catch (error) {
-        throw new Error(error.message);
+    } catch (err) {
+        console.error("virusTotal failed:", err.message);
+        return {
+            risk: "UNKNOWN",
+            reason: "VirusTotal check failed.",
+            error: err.message,
+            finalStats: null
+        };
     }
 }
 
-export const phishTank = (urlToScan) => {
-    const apiKey = process.env.URLSCAN_API_KEY;
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. AbuseIPDB IP Reputation Check
+// ─────────────────────────────────────────────────────────────────────────────
 
-    const apiEndpoint = "https://urlscan.io/api/v1/scan/";
-
-    // console.log(`🚀 Submitting live lookup for: ${urlToScan}...`);
-
+/**
+ * Checks an IP address against AbuseIPDB.
+ *
+ * @param {string} ipAddress
+ * @returns {Promise<Object>}
+ */
+async function abuseIPDB(ipAddress) {
     try {
-        // 1. Submit the scan request to urlscan.io directly (no proxy needed in Node.js)
-        const scanResponse = await fetch(apiEndpoint, {
-            method: 'POST',
+        const apiKey = process.env.ABUSEIPDB_API_KEY?.trim();
+        const url = `https://api.abuseipdb.com/api/v2/check?ipAddress=${ipAddress}&maxAgeInDays=90`;
+
+        const response = await axios.get(url, {
             headers: {
-                'Content-Type': 'application/json',
-                'API-Key': apiKey
+                Accept: "application/json",
+                Key: apiKey
             },
-            body: JSON.stringify({
-                url: urlToScan,
-                visibility: "public" // Options: "public" or "unlisted"
-            })
+            validateStatus: () => true
         });
 
-        if (!scanResponse.ok) {
-            const errorMsg = await scanResponse.text();
-            throw new Error(`Submission failed (${scanResponse.status}): ${errorMsg}`);
+        if (!response.data?.data) {
+            throw new Error(`AbuseIPDB returned status ${response.status}`);
         }
 
-        const scanData = await scanResponse.json();
+        const data = response.data.data;
+        const stats = {
+            abuseConfidenceScore: data.abuseConfidenceScore,
+            totalReports: data.totalReports,
+            country: data.countryCode
+        };
 
-        // 2. Grab the tracking and result links
-        const resultApiUrl = scanData.api; // The endpoint to fetch results
-        const humanReportUrl = scanData.result; // The link to visually see the dashboard
+        return {
+            remark: data.abuseConfidenceScore > 50
+                ? "This IP has a high malicious rating."
+                : "This IP appears safe.",
+            stats
+        };
 
-        // console.log(`⏱️ Scan started. View human dashboard here: ${humanReportUrl}`);
-        // console.log("⏳ Waiting 25 seconds for urlscan.io to process the live page...");
-
-        // Wait 25 seconds to let urlscan.io launch its browser and evaluate the website
-        await new Promise(resolve => setTimeout(resolve, 25000));
-
-        // 3. Retrieve the security verdict
-        // console.log("🔄 Fetching final scan results...");
-        const resultResponse = await fetch(resultApiUrl, {
-            headers: { 'API-Key': apiKey }
-        });
-
-        if (resultResponse.status === 404) {
-            throw new Error(`Result not ready yet (404) - scan is still processing, try waiting longer`);
-        }
-
-        if (!resultResponse.ok) {
-            const errBody = await resultResponse.text();
-            throw new Error(`Result fetch failed (${resultResponse.status}): ${errBody}`);
-        }
-
-        const resultData = await resultResponse.json();
-
-        // 4. Evaluate threat scores
-        const score = resultData.verdicts?.overall?.score || 0;
-        const isMalicious = resultData.verdicts?.overall?.malicious || false;
-
-        if (isMalicious || score >= 50) {
-            // console.error(`❌ RISK DETECTED! Threat Score: ${score}/100.`);
-            // console.error("This link is flagged as an active scam or malicious page.");
-            return { safe: false, score: score, message: "This link is flagged as an active scam or malicious page", report: humanReportUrl };
-        }
-
-        console.log(`✅ CLEAN: Link checked out safe. Threat Score: ${score}/100.`);
-        return { safe: true, score: score, message: "Link checked out safe", report: humanReportUrl };
-
-    } catch (error) {
-    //     console.error("⚠️ Phishing feed check failed to execute:", error.message);
-    //     return { safe: true, error: error.message }; // Fail open for safety
-        throw new Error("Phishing feed check failed to execute:", error.message);
+    } catch (err) {
+        console.error("abuseIPDB failed:", err.message);
+        return {
+            remark: "AbuseIPDB check failed.",
+            error: err.message,
+            stats: null
+        };
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. URLScan.io Live Phishing Scan
+// ─────────────────────────────────────────────────────────────────────────────
+
+const URLSCAN_WAIT_MS = 25000; // 25 s for URLScan to finish processing
+
+/**
+ * Submits a URL to urlscan.io and retrieves the threat verdict.
+ *
+ * @param {string} urlToScan
+ * @returns {Promise<Object>}
+ */
+async function urlScan(urlToScan) {
+    try {
+        const apiKey = process.env.URLSCAN_API_KEY?.trim();
+
+        // 1. Submit scan
+        const scanResponse = await axios.post(
+            "https://urlscan.io/api/v1/scan/",
+            { url: urlToScan, visibility: "public" },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "API-Key": apiKey
+                },
+                validateStatus: () => true
+            }
+        );
+
+        if (scanResponse.status !== 200) {
+            throw new Error(`URLScan submission failed (${scanResponse.status})`);
+        }
+
+        const resultApiUrl = scanResponse.data.api;
+        const humanReportUrl = scanResponse.data.result;
+
+        // 2. Poll for results with retry — URLScan can take 20-80s
+        const MAX_RETRIES = 4;
+        const RETRY_INTERVAL_MS = 15000; // 15s between retries
+        let resultResponse = null;
+
+        await new Promise(resolve => setTimeout(resolve, URLSCAN_WAIT_MS)); // initial wait
+
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            resultResponse = await axios.get(resultApiUrl, {
+                headers: { "API-Key": apiKey },
+                validateStatus: () => true
+            });
+
+            if (resultResponse.status === 200) break; // success
+
+            if (resultResponse.status === 404 && attempt < MAX_RETRIES) {
+                console.log(`[urlScan] Result not ready (attempt ${attempt}/${MAX_RETRIES}), retrying in ${RETRY_INTERVAL_MS / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, RETRY_INTERVAL_MS));
+            } else if (resultResponse.status === 404) {
+                throw new Error("URLScan result not ready after all retries.");
+            } else {
+                throw new Error(`URLScan result fetch failed (${resultResponse.status})`);
+            }
+        }
+
+        // 4. Evaluate verdict
+        const score = resultResponse.data.verdicts?.overall?.score || 0;
+        const isMalicious = resultResponse.data.verdicts?.overall?.malicious || false;
+
+        return {
+            safe: !isMalicious && score < 50,
+            score,
+            message: (isMalicious || score >= 50)
+                ? "URL flagged as an active scam or malicious page."
+                : "URL checked out safe.",
+            report: humanReportUrl
+        };
+
+    } catch (err) {
+        console.error("urlScan failed:", err.message);
+        return {
+            safe: null,
+            score: null,
+            message: "URLScan check failed.",
+            error: err.message
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Master Reputation Check
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Runs all reputation checks in parallel and returns a combined report.
+ *
+ * @param {string} url
+ * @param {string} ip  — IP address from the technical/hosting scan
+ * @returns {Promise<Object>}
+ */
+async function analyzeReputation(url, ip) {
+    const domain = extractHostname(url);
+
+    const [socialSentiment, virusTotalResult, abuseIPDBResult, urlScanResult] =
+        await Promise.all([
+            getSocialSentiment(domain),
+            virusTotal(domain),
+            ip ? abuseIPDB(ip) : Promise.resolve({ remark: "No IP provided", stats: null }),
+            urlScan(url)
+        ]);
+
+    return {
+        domain,
+        socialSentiment,
+        virusTotal: virusTotalResult,
+        abuseIPDB: abuseIPDBResult,
+        urlScan: urlScanResult
+    };
+}
+
+module.exports = {
+    getSocialSentiment,
+    virusTotal,
+    abuseIPDB,
+    urlScan,
+    analyzeReputation
+};
