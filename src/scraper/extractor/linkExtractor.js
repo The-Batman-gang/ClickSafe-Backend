@@ -19,7 +19,6 @@ function extractLinks(website) {
         email: [],
         telephone: [],
         javascript: [],
-        anchors: []
     };
 
     $("a[href]").each((_, element) => {
@@ -29,15 +28,6 @@ function extractLinks(website) {
         const text = cleanText($(element).text());
 
         if (!href) return;
-
-        // Anchor Links
-        if (href.startsWith("#")) {
-            links.anchors.push({
-                href,
-                text
-            });
-            return;
-        }
 
         // Mail Links
         if (href.startsWith("mailto:")) {

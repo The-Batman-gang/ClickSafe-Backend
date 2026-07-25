@@ -68,7 +68,6 @@ function extractStatistics({
 
             javascript: links.javascript.length,
 
-            anchors: links.anchors.length
 
         },
 

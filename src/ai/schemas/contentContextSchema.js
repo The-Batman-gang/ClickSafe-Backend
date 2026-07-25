@@ -66,8 +66,6 @@ const contentContextSchema = z.object({
 
         javascript: z.array(z.any()),
 
-        anchors: z.array(z.any())
-
     }),
 
     text: z.object({
