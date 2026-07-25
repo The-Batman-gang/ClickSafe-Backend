@@ -30,7 +30,7 @@ async function generateContent(prompt) {
         generationConfig: {
             temperature: 0.2,
             topP: 0.9,
-            maxOutputTokens: 4096,
+            maxOutputTokens: 8192,
             responseMimeType: "application/json"
         }
     });
