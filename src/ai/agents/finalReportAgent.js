@@ -1,6 +1,6 @@
-const { buildFinalReportPrompt } = require("../prompts/finalReportPrompt");
-const { generateContent } = require("../gemini/geminiClient");
-const { parseResponse } = require("../utils/responseParser");
+const { buildFinalReportPrompt } = require("../Prompt/finalReportprompt");
+const { generateContent } = require("../gemini/geminiClint");
+const { parseResponse } = require("../../utils/responseParser");
 const { FinalReportSchema } = require("../schemas/finalReportSchema");
 
 /**

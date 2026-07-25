@@ -1,4 +1,4 @@
-const { buildFinalContext } = require("../builders/finalContextBuilder");
+const { buildFinalContext } = require("../context/finalContextBuilder");
 const { generateFinalReport } = require("../agents/finalReportAgent");
 
 /**

@@ -1,5 +1,5 @@
-const { buildContentContext } = require("../builders/contentContextBuilder");
-const { generateContentReport } = require("../agents/contentAgent");
+const { buildContentContext } = require("../context/contentContextBuilder");
+const { analyzeContent: generateContentReport } = require("../agents/contentAgent");
 
 /**
  * Runs the complete Content AI pipeline.

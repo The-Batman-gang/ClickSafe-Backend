@@ -1,77 +1,21 @@
 const { z } = require("zod");
 
-const {
-  TechnicalSchema,
-  ReputationSchema,
-  WebsiteSchema,
-} = require("./analysisInputSchema");
-
-const {
-  ContentAnalysisSchema,
-} = require("./contentAnalysisSchema");
-
-const {
-  SecurityAnalysisSchema,
-} =require("./securityAnalysisSchema");
-
+/**
+ * Output schema for the Final Website Trust AI.
+ * Aligned with the structure expected in finalReportprompt.js
+ */
 const FinalReportSchema = z.object({
-
-  // Website information
-  website: WebsiteSchema.pick({
-    url: true,
-    title: true,
-  }).extend({
-
-    scannedAt: z.string(),
-
-    scanVersion: z.number(),
-
-    contentHash: z.string()
-
-  }),
-
-  // Technical scan results
-  technical: TechnicalSchema,
-
-  // Reputation scan results
-  reputation: ReputationSchema,
-
-  // AI Agent 1 Output
-  contentAnalysis: ContentAnalysisSchema,
-
-  // AI Agent 2 Output
-  securityAssessment: SecurityAnalysisSchema,
-
-  // Overall deterministic score
-  overall: z.object({
-
-    trustScore: z.number().min(0).max(100),
-
-    riskLevel: z.enum([
-      "SAFE",
-      "LOW",
-      "MEDIUM",
-      "HIGH",
-      "CRITICAL"
-    ]),
-
-    confidence: z.number().min(0).max(100)
-
-  }),
-
-  // Metadata about report generation
-  metadata: z.object({
-
-    reportVersion: z.string(),
-
-    generatedBy: z.string(),
-
-    aiModel: z.string(),
-
-    processingTimeMs: z.number()
-
-  })
-
+  trustScore: z.number().min(0).max(100),
+  riskLevel: z.enum([
+    "Low", "Medium", "High", "Critical",
+    "SAFE", "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  ]),
+  confidence: z.number().min(0).max(100),
+  summary: z.string(),
+  positiveSignals: z.array(z.string()).default([]),
+  negativeSignals: z.array(z.string()).default([]),
+  reasons: z.array(z.string()).default([]),
+  recommendation: z.string()
 });
 
 module.exports = {

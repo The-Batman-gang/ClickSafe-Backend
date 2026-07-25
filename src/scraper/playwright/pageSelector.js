@@ -11,11 +11,9 @@
  * NO AI.
  */
 
-const MAX_SELECTED_PAGES = 10;
+const MAX_SELECTED_PAGES = 5;
 
 const PRIORITY_KEYWORDS = [
-
-    "",
 
     "about",
 

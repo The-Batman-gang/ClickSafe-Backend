@@ -1,10 +1,10 @@
 const {
     analyzeContent
-} = require("./orchestrators/contentOrchestrator");
+} = require("./orchestrator/contentOrchestrator");
 
 const {
     analyzeFinalReport
-} = require("./orchestrators/finalOrchestrator");
+} = require("./orchestrator/finalOrchestrator");
 
 module.exports = {
     analyzeContent,

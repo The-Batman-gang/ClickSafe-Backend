@@ -1,6 +1,6 @@
-const { buildContentPrompt } = require("../prompts/contentPrompt");
-const { generateContent } = require("../gemini/geminiClient");
-const { parseResponse } = require("../utils/responseParser");
+const { buildContentPrompt } = require("../Prompt/contentprompt");
+const { generateContent } = require("../gemini/geminiClint");
+const { parseResponse } = require("../../utils/responseParser");
 const { ContentReportSchema } = require("../schemas/contentReportSchema");
 
 /**

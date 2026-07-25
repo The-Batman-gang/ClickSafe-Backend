@@ -12,7 +12,7 @@
  *
  */
 
-const DEFAULT_MAX_PAGES = 25;
+const DEFAULT_MAX_PAGES = 10;
 
 async function crawlWebsite(
     context,
