@@ -77,6 +77,10 @@ async function evaluateJobPosting(jobData) {
     // Only send the fields the model actually needs - drop url/platform/scrapedAt/profile/full description
     const trimmedPayload = {
         title: jobData.job?.title,
+        description: jobData.job?.description,
+        employmentType: jobData.job?.employmentType[0],
+        experience: jobData.job?.experience[0],
+        skills: jobData.job?.skills,
         salary: jobData.job?.salary?.raw,
         company: jobData.company?.name,
         location: jobData.company?.location
