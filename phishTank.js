@@ -1,7 +1,5 @@
 // We still need a live phishing feed check because AbuseIPDB and VirusTotal focus on historical reputation and malware, whereas phishing sites are highly short-lived and disappear within hours
 
-// There is a bug in the code, need to be resolved
-
 /**
  * Standalone client script to scan a URL using urlscan.io
  * @param {string} urlToScan - The absolute web address you want to evaluate
@@ -41,17 +39,24 @@ async function livePhishingScan(urlToScan, apiKey) {
         const humanReportUrl = scanData.result; // The link to visually see the dashboard
 
         console.log(`⏱️ Scan started. View human dashboard here: ${humanReportUrl}`);
-        console.log("⏳ Waiting 15 seconds for urlscan.io to process the live page...");
+        console.log("⏳ Waiting 25 seconds for urlscan.io to process the live page...");
 
-        // Wait 15 seconds to let urlscan.io launch its browser and evaluate the website
-        await new Promise(resolve => setTimeout(resolve, 15000));
+        // Wait 25 seconds to let urlscan.io launch its browser and evaluate the website
+        await new Promise(resolve => setTimeout(resolve, 25000));
 
         // 3. Retrieve the security verdict
         console.log("🔄 Fetching final scan results...");
-        const resultResponse = await fetch(resultApiUrl);
+        const resultResponse = await fetch(resultApiUrl, {
+            headers: { 'API-Key': apiKey }
+        });
+
+        if (resultResponse.status === 404) {
+            throw new Error(`Result not ready yet (404) - scan is still processing, try waiting longer`);
+        }
 
         if (!resultResponse.ok) {
-            throw new Error(`Result fetch failed (${resultResponse.status}) - scan may still be processing, try waiting longer`);
+            const errBody = await resultResponse.text();
+            throw new Error(`Result fetch failed (${resultResponse.status}): ${errBody}`);
         }
 
         const resultData = await resultResponse.json();
@@ -77,6 +82,7 @@ async function livePhishingScan(urlToScan, apiKey) {
 
 // === EXECUTING THE SCRIPT ===
 const MY_URLSCAN_KEY = process.env.URLSCAN_API_KEY;
-const suspiciousUrl = "https://www.nvidia.com/en-us/foundation/";  // must include https://
+const suspiciousUrl = "https://www.nvidia.com/en-us/foundation/";  
+// const suspiciousUrl = "google.com";  
 
 livePhishingScan(suspiciousUrl, MY_URLSCAN_KEY);
