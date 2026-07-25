@@ -27,7 +27,6 @@ function aggregateWebsite(pages) {
             email: [],
             telephone: [],
             javascript: [],
-            anchors: []
         },
 
         claims: [],
@@ -78,7 +77,6 @@ function aggregateWebsite(pages) {
         website.links.email.push(...page.links.email);
         website.links.telephone.push(...page.links.telephone);
         website.links.javascript.push(...page.links.javascript);
-        website.links.anchors.push(...page.links.anchors);
 
         // ------------------------
         // Claims
