@@ -55,10 +55,9 @@
 // Check agr grounding chunks k wjh se tokens expire hora th or what. This needs to get fixed
 
 const { GoogleGenAI } = require('@google/genai');
-require('dotenv').config({ override: true });
+require('dotenv').config();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Deterministic check - no AI/tokens needed for this
 function emailDomainMatches(email, website) {
@@ -91,8 +90,8 @@ async function evaluateJobPosting(jobData) {
 Check: (1) salary too good to be true, (2) any scam/fake-job reports for this company online.
 Recruiter email domain matches company site: ${domainMatch === null ? "unknown" : domainMatch}
 
-Reply with ONLY this JSON, no markdown, max 2 short reasons:
-{"riskLevel":"SAFE|SUSPICIOUS|DANGEROUS","scamScore":0-10,"reasons":["...","..."]}`;
+Reply in ONLY this JSON format:
+{"riskLevel":"SAFE|SUSPICIOUS|DANGEROUS","scamScore":0-10,"reasons":[reason1,reason2]}`;
 
     try {
         const response = await ai.models.generateContent({
@@ -134,12 +133,5 @@ evaluateJobPosting(samplePayload).then(res => console.log("\nVerdict:", JSON.str
 
 /*
 OUTPUT:
-{
-  "reasons": [
-    "Salary is realistic for a Software Engineer at Infosys.",
-    "Recruiter email domain matches the official company site."
-  ],
-  "emailDomainMatch": true,
-  "sources": []
-}
+    again check its output
 */
