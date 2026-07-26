@@ -1,6 +1,13 @@
 /**
  * Extracts the main job information
  * from a job posting.
+ *
+ * Responsibilities:
+ * - Job title
+ * - Job description (trimmed to 200 words)
+ * - Employment type
+ * - Experience
+ * - Skills
  */
 
 function extractDescription($) {
@@ -9,7 +16,7 @@ function extractDescription($) {
 
   function clean(text) {
 
-      return text
+      return (text || "")
           .replace(/\s+/g, " ")
           .trim();
 
@@ -24,20 +31,33 @@ function extractDescription($) {
 
   }
 
+  function trimDescription(text, maxWords = 200) {
+
+      const words = clean(text).split(/\s+/);
+
+      if (words.length <= maxWords) {
+          return clean(text);
+      }
+
+      return words
+          .slice(0, maxWords)
+          .join(" ") + "...";
+
+  }
+
   // ---------- Title ----------
 
-  const title =
-      clean(
+  const title = clean(
 
-          $("h1").first().text() ||
+      $("h1").first().text() ||
 
-          $('[data-testid*="title"]').first().text() ||
+      $('[data-testid*="title"]').first().text() ||
 
-          $('[class*="job-title"]').first().text() ||
+      $('[class*="job-title"]').first().text() ||
 
-          $('[class*="title"]').first().text()
+      $('[class*="title"]').first().text()
 
-      ) || null;
+  ) || null;
 
   // ---------- Description ----------
 
@@ -55,39 +75,40 @@ function extractDescription($) {
 
   ];
 
-  let description = "";
+  let rawDescription = "";
 
   for (const selector of descriptionSelectors) {
 
-      const text =
-          clean(
-              $(selector).first().text()
-          );
+      const text = clean(
+          $(selector).first().text()
+      );
 
-      if (text.length > description.length) {
+      if (text.length > rawDescription.length) {
 
-          description = text;
+          rawDescription = text;
 
       }
 
   }
 
-  if (!description) {
+  if (!rawDescription) {
 
-      description =
-          clean($("body").text());
+      rawDescription = clean(
+          $("body").text()
+      );
 
   }
+
+  const description = trimDescription(rawDescription, 200);
 
   // ---------- Experience ----------
 
   const experience =
-
-      description.match(
-          /\d+\+?\s*(years?|yrs?)\s*(of)?\s*experience/gi
+      rawDescription.match(
+          /\d+\+?\s*(?:years?|yrs?)\s*(?:of)?\s*experience/gi
       ) || [];
 
-  // ---------- Employment ----------
+  // ---------- Employment Type ----------
 
   const employmentTypes = [
 
@@ -115,13 +136,12 @@ function extractDescription($) {
 
   for (const type of employmentTypes) {
 
-      const regex =
-          new RegExp(
-              "\\b" + escapeRegex(type) + "\\b",
-              "i"
-          );
+      const regex = new RegExp(
+          "\\b" + escapeRegex(type) + "\\b",
+          "i"
+      );
 
-      if (regex.test(description)) {
+      if (regex.test(rawDescription)) {
 
           employment.push(type);
 
@@ -159,17 +179,14 @@ function extractDescription($) {
       "Azure",
 
       "Git",
-
       "GitHub",
 
       "HTML",
-
       "CSS",
 
       "Spring Boot",
 
       "C++",
-
       "C#",
 
       "Go",
@@ -195,15 +212,26 @@ function extractDescription($) {
 
   for (const skill of knownSkills) {
 
-      const regex =
-          new RegExp(
-              "\\b" +
-              escapeRegex(skill) +
-              "\\b",
+      let regex;
+
+      // Handle special skills that contain non-word characters
+      if (["C++", "C#", "Node.js"].includes(skill)) {
+
+          regex = new RegExp(
+              escapeRegex(skill),
               "i"
           );
 
-      if (regex.test(description)) {
+      } else {
+
+          regex = new RegExp(
+              "\\b" + escapeRegex(skill) + "\\b",
+              "i"
+          );
+
+      }
+
+      if (regex.test(rawDescription)) {
 
           skills.push(skill);
 
