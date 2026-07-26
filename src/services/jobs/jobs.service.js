@@ -35,7 +35,7 @@ function checkDomainAlignment(email, companyWebsite) {
 }
 
 // ============================================================
-// Service 1: Job Scam Check
+// Service 1: Job Scam Check (will check claims to be "Too Good To Be True" and extract observations from Reddit/Other Public Discussions)
 // ============================================================
 async function jobScamCheck(jobData) {
     const domainMatch = emailDomainMatches(jobData.recruiter?.email, jobData.company?.website);
@@ -91,7 +91,7 @@ Reply in ONLY this JSON format:
 }
 
 // ============================================================
-// Service 2: Company Footprint Verification
+// Service 2: Company Footprint Verification (will verify company and HR's digital footprint across multiple platforms to estimate its legitimacy)
 // ============================================================
 async function companyFootprintCheck(payload) {
     const domainCheck = checkDomainAlignment(payload.recruiter?.email, payload.company?.website);
