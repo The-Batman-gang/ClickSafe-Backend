@@ -13,8 +13,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
 const analysisRoutes = require("./routes/analysis.routes");
+const jobRoutes = require("./routes/job.routes");
 
 app.use("/api/analyze", analysisRoutes);
+app.use("/api/job", jobRoutes);
 
 // Root Route
 

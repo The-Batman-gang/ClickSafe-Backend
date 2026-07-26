@@ -151,14 +151,14 @@ module.exports = { jobScamCheck, companyFootprintCheck };
 
 
 // --- Quick Test ---
-if (require.main === module) {
-    const samplePayload = {
-        page: { url: "https://www.infosys.com/careers/", platform: "LinkedIn" },
-        job: { title: "Software Engineer", description: "Build scalable web applications", salary: { raw: ["₹6–10 LPA"], disclosed: true } },
-        company: { name: "Infosys", website: "https://www.infosys.com", location: "Bangalore" },
-        recruiter: { name: "Recruiting Team", email: "careers@infosys.com", profile: "https://linkedin.com/company/infosys" }
-    };
+// if (require.main === module) {
+//     const samplePayload = {
+//         page: { url: "https://www.infosys.com/careers/", platform: "LinkedIn" },
+//         job: { title: "Software Engineer", description: "Build scalable web applications", salary: { raw: ["₹6–10 LPA"], disclosed: true } },
+//         company: { name: "Infosys", website: "https://www.infosys.com", location: "Bangalore" },
+//         recruiter: { name: "Recruiting Team", email: "careers@infosys.com", profile: "https://linkedin.com/company/infosys" }
+//     };
 
-    jobScamCheck(samplePayload).then(res => console.log("\nJob Scam Verdict:", JSON.stringify(res, null, 2)));
-    companyFootprintCheck(samplePayload).then(res => console.log("\nFootprint Verdict:", JSON.stringify(res, null, 2)));
-}
+//     jobScamCheck(samplePayload).then(res => console.log("\nJob Scam Verdict:", JSON.stringify(res, null, 2)));
+//     companyFootprintCheck(samplePayload).then(res => console.log("\nFootprint Verdict:", JSON.stringify(res, null, 2)));
+// }
