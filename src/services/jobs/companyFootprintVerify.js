@@ -52,7 +52,7 @@ Respond ONLY in valid JSON, no markdown fences:
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash-lite',
+      model: 'gemini-3-flash-preview',
       contents: prompt
       // Note: prompt asks for a "search" but no search tool is enabled here.
       // Uncomment below to enable real web grounding (uses separate, limited free quota):
@@ -84,10 +84,10 @@ Respond ONLY in valid JSON, no markdown fences:
 }
 
 const samplePayload = {
-    page: { url: "https://www.infosys.com/careers/", platform: "LinkedIn" },
-    job: { title: "Software Engineer", description: "Build scalable web applications", salary: { raw: ["₹6–10 LPA"], disclosed: true } },
-    company: { name: "Infosys", website: "https://www.infosys.com", location: "Bangalore" },
-    recruiter: { name: "Recruiting Team", email: "careers@infosys.com", profile: "https://linkedin.com/company/infosys" }
+  page: { url: "https://www.infosys.com/careers/", platform: "LinkedIn" },
+  job: { title: "Software Engineer", description: "Build scalable web applications", salary: { raw: ["₹6–10 LPA"], disclosed: true } },
+  company: { name: "Infosys", website: "https://www.infosys.com", location: "Bangalore" },
+  recruiter: { name: "Recruiting Team", email: "careers@infosys.com", profile: "https://linkedin.com/company/infosys" }
 };
 
 runBackgroundCheck(samplePayload).then(result => console.log("Result is", result));

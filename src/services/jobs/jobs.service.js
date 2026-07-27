@@ -61,7 +61,7 @@ Reply in ONLY this JSON format:
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash-lite",
+            model: "gemini-3-flash-preview",
             contents: prompt
         });
 
@@ -117,7 +117,7 @@ Respond ONLY in valid JSON, no markdown fences:
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3.5-flash-lite',
+            model: 'gemini-3-flash-preview',
             contents: prompt
             // Uncomment to enable real web grounding (uses separate, limited free quota):
             // config: { tools: [{ googleSearch: {} }] }

@@ -4,17 +4,8 @@ const { GoogleGenAI } = require("@google/genai");
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 (async () => {      // add 'domain' param here and in the prompt
-    const prompt = `
-    Search Reddit and other public discussions for reports,
-    complaints, or scam allegations about "free-vbucks-generator.com".
-    Answer only in this JSON format:
-    {
-      "riskLevel": "SAFE | SUSPICIOUS | DANGEROUS",
-      "safeScore": 0 to 10,
-      "reasons": ["reason1", "reason2", "reason3"],
-      "sources": ["url1", "url2"]
-    }
-  `;
+    const prompt = `Is orange a fruit? Answer only in the proper json format: {fruit: yes} or {fruit: no}`;
+    console.log("Reached here")
 
     const response = await ai.models.generateContent({
         // model: "gemini-3.6-flash",

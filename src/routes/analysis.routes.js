@@ -6,5 +6,6 @@ const {
 } = require("../controllers/analysis.controller");
 
 router.post("/", analyzeWebsite);
+router.post("/websiteSearch", analyzeWebsite);
 
 module.exports = router;

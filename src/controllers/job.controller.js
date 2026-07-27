@@ -6,6 +6,7 @@ const { normalizeJobData } = require("../jobInspection/normalizer/normalizeJobDa
 const { buildJobResult } = require("../jobInspection/jobResultBuilder");
 const { investigateJob } = require("../jobInspection/jobOrchestrator");
 const { jobScamCheck, companyFootprintCheck } = require("../services/jobs/jobs.service");
+const { analyzeTechnical } = require("../services/technical/technical.service");
 
 /**
  * Endpoint to detect whether a given page is a job posting.
@@ -40,6 +41,7 @@ exports.detectJobPage = async (req, res) => {
             success: true,
             url: finalUrl,
             isJob: detection.isJob,
+            isJobSite: detection.isJob,
             confidence: detection.confidence
         });
     } catch (error) {
@@ -79,10 +81,10 @@ exports.analyzeJob = async (req, res) => {
             jobData = await investigateJob(url);
         }
 
-        console.log(`[Job Analyze] Analyzing job details with AI services for company: ${jobData.company?.name || 'unknown'}`);
+        console.log(`[Job Analyze] Analyzing job details with AI and technical services for company: ${jobData.company?.name || 'unknown'}`);
         
-        // Run AI analysis services in parallel
-        const [scamReport, footprintReport] = await Promise.all([
+        // Run AI analysis services and technical scan in parallel
+        const [scamReport, footprintReport, technicalReport] = await Promise.all([
             jobScamCheck(jobData).catch(err => {
                 console.error("Job scam check failed (non-fatal):", err.message);
                 return { error: err.message };
@@ -90,11 +92,80 @@ exports.analyzeJob = async (req, res) => {
             companyFootprintCheck(jobData).catch(err => {
                 console.error("Company footprint verification failed (non-fatal):", err.message);
                 return { error: err.message };
+            }),
+            analyzeTechnical(url).catch(err => {
+                console.error("Technical scan failed (non-fatal):", err.message);
+                return {};
             })
         ]);
 
+        // Synthesize finalReport to match BackendAnalysisResponse format
+        const isDangerous = scamReport.riskLevel === "DANGEROUS" || scamReport.scamScore > 7;
+        const isSuspicious = scamReport.riskLevel === "SUSPICIOUS" || (scamReport.scamScore > 3 && scamReport.scamScore <= 7) || footprintReport.domainAlignment === false;
+        
+        const riskLevel = isDangerous ? "high" : (isSuspicious ? "medium" : "safe");
+        
+        let trustScore = 100;
+        if (scamReport.scamScore) {
+            trustScore -= (scamReport.scamScore * 6);
+        }
+        if (footprintReport.backgroundRiskScore) {
+            trustScore -= (footprintReport.backgroundRiskScore * 0.3);
+        } else {
+            if (footprintReport.isCompanyVerified === false) trustScore -= 20;
+        }
+        if (footprintReport.domainAlignment === false) trustScore -= 15;
+        trustScore = Math.max(10, Math.min(100, Math.round(trustScore)));
+
+        const positiveSignals = [];
+        const negativeSignals = [];
+        const reasons = [...(scamReport.reasons || [])];
+
+        if (footprintReport.domainAlignment) {
+            positiveSignals.push(footprintReport.domainAlignmentReason || "Email domain matches official company website");
+        } else if (footprintReport.domainAlignment === false) {
+            negativeSignals.push(footprintReport.domainAlignmentReason || "Recruiter email domain mismatch");
+        }
+
+        if (footprintReport.isCompanyVerified === true) {
+            positiveSignals.push("Company digital footprint verified");
+        } else if (footprintReport.isCompanyVerified === false) {
+            negativeSignals.push("Company digital footprint is unverified or suspicious");
+        }
+
+        if (footprintReport.hrPublicPresenceFound === true) {
+            positiveSignals.push("HR/Recruiter public presence verified");
+        }
+
+        if (scamReport.riskLevel === "SAFE" && scamReport.scamScore <= 3) {
+            positiveSignals.push("No obvious scam indicators in job description");
+        }
+
+        let recommendation = "Exercise standard caution when interacting with this domain.";
+        if (riskLevel === "high") {
+            recommendation = "Critical security concerns detected. Do not enter credentials, payment info, or upload sensitive documents.";
+        } else if (riskLevel === "medium") {
+            recommendation = "Exercise standard caution. Verify recruiter credentials and company registration.";
+        } else if (riskLevel === "safe") {
+            recommendation = "The job posting and company footprint appear legitimate.";
+        }
+
+        const finalReport = {
+            trustScore,
+            riskLevel,
+            confidence: 90,
+            summary: footprintReport.companyFootprintSummary || (scamReport.reasons && scamReport.reasons[0]) || "Job analysis complete based on company footprint and scam check.",
+            positiveSignals,
+            negativeSignals,
+            reasons,
+            recommendation
+        };
+
         return res.status(200).json({
             success: true,
+            url,
+            technical: technicalReport || {},
+            finalReport,
             jobData,
             analysis: {
                 scamReport,

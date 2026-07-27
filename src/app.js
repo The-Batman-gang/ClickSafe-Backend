@@ -17,6 +17,8 @@ const jobRoutes = require("./routes/job.routes");
 
 app.use("/api/analyze", analysisRoutes);
 app.use("/api/job", jobRoutes);
+app.use("/", analysisRoutes);
+app.use("/", jobRoutes);
 
 // Root Route
 
