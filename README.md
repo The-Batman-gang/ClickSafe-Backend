@@ -1,4 +1,5 @@
 # 🛡️ ClickSafe Backend
+(refer to FEATURES.md to get the detailed features of what the application does)
 
 ClickSafe (also known as VeriWeb) is a comprehensive, production-ready URL and website technical analysis API service. Built on **Node.js**, **Express**, and **Supabase**, ClickSafe analyzes web domains in real-time to inspect their security configurations, hosting infrastructure, domain authority, and redirect behaviors.
 
