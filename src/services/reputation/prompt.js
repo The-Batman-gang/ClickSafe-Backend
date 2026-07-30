@@ -1,7 +1,10 @@
+const OpenAI = require("openai");
 require('dotenv').config();
-const { GoogleGenAI } = require("@google/genai");
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const client = new OpenAI({
+    apiKey: process.env.OMNIROUTE_API_KEY,
+    baseURL: process.env.OMNIROUTE_BASE_URL
+});
 
 (async () => {      // add 'domain' param here and in the prompt
     const prompt = `
@@ -16,13 +19,21 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     }
   `;
 
-    const response = await ai.models.generateContent({
-        // model: "gemini-3.6-flash",
-        model: "gemini-3-flash-preview",         // This also works
-        contents: prompt,
+    const response = await client.chat.completions.create({
+        model: "auto",
+        messages: [
+            {
+                role: "user",
+                content: prompt
+            }
+        ],
+        temperature: 0.2,
+        response_format: {
+            type: "json_object"
+        }
     });
 
-    const result = JSON.parse(response.text.replace(/```json|```/g, '').trim());
+    const result = JSON.parse(response.choices[0].message.content.replace(/```json|```/g, '').trim());
     console.log(result);        // return this result
 })();
 

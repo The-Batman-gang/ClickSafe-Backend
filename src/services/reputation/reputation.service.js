@@ -1,7 +1,12 @@
 require("dotenv").config();
 const axios = require("axios");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require("openai");
 const { URL } = require("url");
+
+const client = new OpenAI({
+    apiKey: process.env.OMNIROUTE_API_KEY,
+    baseURL: process.env.OMNIROUTE_BASE_URL
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -19,11 +24,11 @@ function extractHostname(rawUrl) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Social Sentiment via Gemini (grounded search)
+// 1. Social Sentiment via OmniRoute (grounded search)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Uses Gemini to reason about public reputation of a domain
+ * Uses LLM via OmniRoute to reason about public reputation of a domain
  * based on its own training knowledge and web grounding.
  *
  * @param {string} domain
@@ -31,9 +36,6 @@ function extractHostname(rawUrl) {
  */
 async function getSocialSentiment(domain) {
     try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-
         const prompt = `
 You are a cybersecurity analyst.
 
@@ -50,20 +52,25 @@ Return ONLY valid JSON — no markdown, no code blocks:
 }
 `;
 
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 2048, // Increased — verbose reasons were truncating JSON
-                responseMimeType: "application/json"
+        const response = await client.chat.completions.create({
+            model: "auto",
+            messages: [
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            temperature: 0.2,
+            response_format: {
+                type: "json_object"
             }
         });
 
-        const raw = result.response.text();
+        const raw = response.choices[0].message.content;
 
-        console.log("========== GEMINI RAW ==========");
+        console.log("========== OMNIROUTE RAW ==========");
         console.log(raw);
-        console.log("================================");
+        console.log("===================================");
 
         const cleaned = raw
             .replace(/```json\s*/gi, "")

@@ -1,42 +1,35 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require("openai");
 require("dotenv").config();
 
-const genAI = new GoogleGenerativeAI(
-    process.env.GEMINI_API_KEY
-);
-
-const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-lite"
+const client = new OpenAI({
+    apiKey: process.env.OMNIROUTE_API_KEY,
+    baseURL: process.env.OMNIROUTE_BASE_URL // http://localhost:20128/v1
 });
 
 /**
- * Sends a prompt to Gemini.
- *
+ * Sends a prompt to OmniRoute.
  */
 async function generateContent(prompt) {
 
-    const result = await model.generateContent({
-        contents: [
+    const response = await client.chat.completions.create({
+        model: "auto", // or "auto"
+        messages: [
             {
                 role: "user",
-                parts: [
-                    {
-                        text: prompt
-                    }
-                ]
+                content: prompt
             }
         ],
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 8192,
 
-        generationConfig: {
-            temperature: 0.2,
-            topP: 0.9,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json"
+        // Ask the model to return JSON
+        response_format: {
+            type: "json_object"
         }
     });
 
-    return result.response.text();
-
+    return response.choices[0].message.content;
 }
 
 module.exports = {

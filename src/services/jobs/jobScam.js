@@ -52,12 +52,13 @@
 }
 */
 
-// Check agr grounding chunks k wjh se tokens expire hora th or what. This needs to get fixed
-
-const { GoogleGenAI } = require('@google/genai');
+const OpenAI = require("openai");
 require('dotenv').config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const client = new OpenAI({
+    apiKey: process.env.OMNIROUTE_API_KEY,
+    baseURL: process.env.OMNIROUTE_BASE_URL
+});
 
 // Deterministic check - no AI/tokens needed for this
 function emailDomainMatches(email, website) {
@@ -91,23 +92,30 @@ Check: (1) salary too good to be true, (2) any scam/fake-job reports for this co
 Recruiter email domain matches company site: ${domainMatch === null ? "unknown" : domainMatch}
 
 Reply in ONLY this JSON format:
-{"riskLevel":"SAFE|SUSPICIOUS|DANGEROUS","scamScore":0-10,"reasons":[reason1,reason2]}`;
+{"riskLevel":"SAFE|SUSPICIOUS|DANGEROUS","scamScore":0-10,"reasons":["reason1","reason2"],"sources":["url1","url2"]}`;
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: prompt
+        const response = await client.chat.completions.create({
+            model: "auto",
+            messages: [
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            temperature: 0.2,
+            response_format: {
+                type: "json_object"
+            }
         });
 
-        const jsonString = response.text.replace(/```json|```/g, '').trim();
+        const jsonString = response.choices[0].message.content.replace(/```json|```/g, '').trim();
         const result = JSON.parse(jsonString);
 
-        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-        const sources = groundingChunks.map(c => c.web?.uri).filter(Boolean);
+        const sources = result.sources || [];
 
         return { ...result, emailDomainMatch: domainMatch, sources };
     } catch (error) {
-        console.log("\n\nUsing key ending in:", GEMINI_API_KEY?.slice(-6));
         console.error("❌ Job Analysis Error:", error.message);
         return {
             riskLevel: "UNKNOWN",

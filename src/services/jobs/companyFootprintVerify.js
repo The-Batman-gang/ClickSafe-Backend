@@ -1,7 +1,10 @@
-const { GoogleGenAI } = require('@google/genai');
+const OpenAI = require("openai");
 require('dotenv').config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const client = new OpenAI({
+    apiKey: process.env.OMNIROUTE_API_KEY,
+    baseURL: process.env.OMNIROUTE_BASE_URL
+});
 
 /**
  * Verifies Recruiter email domain against Company website
@@ -26,7 +29,7 @@ function checkDomainAlignment(email, companyWebsite) {
 }
 
 /**
- * Runs Gemini Web Grounding for Company Footprint & Social Presence
+ * Runs Web Grounding for Company Footprint & Social Presence
  */
 async function runBackgroundCheck(payload) {
   const domainCheck = checkDomainAlignment(payload.recruiter?.email, payload.company?.website);
@@ -51,15 +54,21 @@ Respond ONLY in valid JSON, no markdown fences:
 `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt
-      // Note: prompt asks for a "search" but no search tool is enabled here.
-      // Uncomment below to enable real web grounding (uses separate, limited free quota):
-      // config: { tools: [{ googleSearch: {} }] }
+    const response = await client.chat.completions.create({
+      model: "auto",
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.2,
+      response_format: {
+        type: "json_object"
+      }
     });
 
-    const jsonString = response.text.replace(/```json|```/g, '').trim();
+    const jsonString = response.choices[0].message.content.replace(/```json|```/g, '').trim();
     const aiResult = JSON.parse(jsonString);
 
     return {
